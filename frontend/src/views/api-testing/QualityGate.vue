@@ -25,10 +25,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="通过率下限">
-          <el-input-number v-model="minPassRate" :min="0" :max="100" @change="resetEvidence" /> %
+          <el-input-number v-model="minPassRate" :min="0" :max="100" /> %
         </el-form-item>
         <el-form-item label="P95 上限">
-          <el-input-number v-model="maxP95" :min="1" @change="resetEvidence" /> ms
+          <el-input-number v-model="maxP95" :min="1" /> ms
         </el-form-item>
         <el-form-item label="并发性能门禁">
           <el-switch v-model="loadEnabled" @change="resetEvidence" />
@@ -44,17 +44,17 @@
             </el-select>
           </el-form-item>
           <el-form-item label="负载配置">
-            并发 <el-input-number v-model="loadUsers" :min="1" :max="8" @change="resetEvidence" />
-            每用户请求 <el-input-number v-model="loadIterations" :min="1" :max="10" @change="resetEvidence" />
+            并发 <el-input-number v-model="loadUsers" :min="1" :max="8" />
+            每用户请求 <el-input-number v-model="loadIterations" :min="1" :max="10" />
           </el-form-item>
           <el-form-item label="性能预算">
-            P95(ms) <el-input-number v-model="loadP95" :min="1" @change="resetEvidence" />
-            错误率(%) <el-input-number v-model="loadErrors" :min="0" :max="100" @change="resetEvidence" />
-            成功RPS <el-input-number v-model="loadRps" :min="0" @change="resetEvidence" />
+            P95(ms) <el-input-number v-model="loadP95" :min="1" />
+            错误率(%) <el-input-number v-model="loadErrors" :min="0" :max="100" />
+            成功RPS <el-input-number v-model="loadRps" :min="0" />
           </el-form-item>
           <el-form-item label="SQL查询预算">
             <el-switch v-model="sqlEnabled" @change="resetEvidence" />
-            <el-input-number v-if="sqlEnabled" v-model="maxQueries" :min="0" @change="resetEvidence" />
+            <el-input-number v-if="sqlEnabled" v-model="maxQueries" :min="0" />
             <span class="arrow">要求每个响应携带 X-Query-Count；演示项目预期为 1。</span>
           </el-form-item>
         </template>
@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import api from '@/utils/api'
 
 const projects = ref([]), versions = ref([]), project = ref(null)
@@ -114,6 +114,7 @@ const data = () => ({ baseline_id: baseline.value, candidate_id: candidate.value
       ...(sqlEnabled.value ? { max_queries: maxQueries.value } : {}) } } : {}) } })
 const unpack = response => response.data
 const resetEvidence = () => { generation++; plan.value = null; run.value = null; report.value = null; error.value = ''; idempotencyKey = null; performanceId = null; performanceKey = null }
+watch([minPassRate, maxP95, loadUsers, loadIterations, loadP95, loadErrors, loadRps, maxQueries], resetEvidence, { flush: 'sync' })
 const loadVersions = async () => { versions.value = unpack(await api.get('/v1/contracts/', { params: { project: project.value } })) }
 const changeProject = async () => {
   resetEvidence(); baseline.value = null; candidate.value = null

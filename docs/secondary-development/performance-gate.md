@@ -16,6 +16,15 @@ OpenAPI 变更分析 → 受影响套件回归 → 已保存 GET/HEAD 请求的�
 
 性能验收先采集 baseline，再对 optimized 执行相同的 4 用户 × 每用户 10 请求负载。真实 P95 与 RPS 写入 CI 的 `performance-verification.json`，**不承诺固定耗时提升比例**。共享 CI 机器存在噪声，验收以等价响应、49→1 查询、零错误、幂等/库存一致性和门禁结果为确定性依据。
 
+已完成 [提交 96dddb6 的五项 CI 验收](https://github.com/DUAN-66/testhub-platform/actions/runs/37292683195)。以下是该次执行的单轮实测，完整来源记录见 [公开性能证据](performance-evidence.json)：
+
+| 验收环境 | 基线 P95 / 优化 P95 | 基线成功 RPS / 优化成功 RPS | SQL 查询 | 错误率 |
+|---|---|---|---|---|
+| Ubuntu CI、MySQL 8、Redis 7、独立 worker | 287.52 / 88.57 ms | 19.03 / 54.44 | 49 / 1 | 均为 0% |
+| Docker、MySQL 8、Redis 7、独立 worker | 200.21 / 104.31 ms | 23.21 / 68.02 | 49 / 1 | 均为 0% |
+
+两种环境均完成同键并发收据一致、库存扣减五次且最终为零、正常预算 PASS、严格预算 BLOCK（功能通过率仍为 100%）。这些数字限定于该次夹具和负载；简历可强调可复现的查询次数下降与验证方法，不能写成生产容量或稳定提升保证。
+
 ## 运行
 
 隔离 Docker 验收环境已经包含初始化与独立 worker：

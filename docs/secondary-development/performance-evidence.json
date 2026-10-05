@@ -1,0 +1,23 @@
+{
+  "source": {
+    "commit": "96dddb6799331203d0fa6f5d0094c5bfb8ee0641",
+    "workflow": "https://github.com/DUAN-66/testhub-platform/actions/runs/37292683195",
+    "integration_job": 111706563608,
+    "containers_job": 111706563851,
+    "measured_at": "2026-10-05"
+  },
+  "scope": "Single CI observation, 24-product DEBUG fixture; not production capacity or repeatability guarantee",
+  "workload": {"users": 4, "iterations": 10, "timeout_seconds": 3, "requests_per_run": 40},
+  "integration_mysql_redis": {
+    "baseline": {"p95_ms": 287.52427500000977, "successful_rps": 19.028163683538654, "max_queries": 49, "error_rate": 0},
+    "optimized": {"p95_ms": 88.567587, "successful_rps": 54.44309277065682, "max_queries": 1, "error_rate": 0},
+    "inventory": {"initial_stock": 5, "repeat_receipts": 1, "successful_claims": 5, "remaining": 0},
+    "gate_decisions": ["PASS", "BLOCK"]
+  },
+  "docker_mysql_redis": {
+    "baseline": {"p95_ms": 200.20712900003448, "successful_rps": 23.212756880666287, "max_queries": 49, "error_rate": 0},
+    "optimized": {"p95_ms": 104.31165599999304, "successful_rps": 68.02325489247293, "max_queries": 1, "error_rate": 0},
+    "inventory": {"initial_stock": 5, "repeat_receipts": 1, "successful_claims": 5, "remaining": 0},
+    "gate_decisions": ["PASS", "BLOCK"]
+  }
+}
