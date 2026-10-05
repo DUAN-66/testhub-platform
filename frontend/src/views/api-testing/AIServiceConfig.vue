@@ -69,7 +69,7 @@
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('apiTesting.aiServiceConfig.apiKey')" prop="api_key">
-          <el-input v-model="form.api_key" type="password" :placeholder="$t('apiTesting.aiServiceConfig.inputApiKey')" show-password />
+          <el-input v-model="form.api_key" type="password" :placeholder="editingConfig ? '留空保留已有密钥' : $t('apiTesting.aiServiceConfig.inputApiKey')" show-password />
         </el-form-item>
         <el-form-item :label="$t('apiTesting.aiServiceConfig.apiBaseUrl')" prop="base_url">
           <el-input v-model="form.base_url" :placeholder="$t('apiTesting.aiServiceConfig.inputApiBaseUrl')" />
@@ -127,7 +127,7 @@ const rules = computed(() => ({
   name: [{ required: true, message: t('apiTesting.aiServiceConfig.validation.configNameRequired'), trigger: 'blur' }],
   service_type: [{ required: true, message: t('apiTesting.aiServiceConfig.validation.serviceTypeRequired'), trigger: 'change' }],
   role: [{ required: true, message: t('apiTesting.aiServiceConfig.validation.roleTypeRequired'), trigger: 'change' }],
-  api_key: [{ required: true, message: t('apiTesting.aiServiceConfig.validation.apiKeyRequired'), trigger: 'blur' }],
+  api_key: [{ required: !editingConfig.value, message: t('apiTesting.aiServiceConfig.validation.apiKeyRequired'), trigger: 'blur' }],
   base_url: [{ required: true, message: t('apiTesting.aiServiceConfig.validation.apiBaseUrlRequired'), trigger: 'blur' }],
   model_name: [{ required: true, message: t('apiTesting.aiServiceConfig.validation.modelNameRequired'), trigger: 'blur' }]
 }))
@@ -162,7 +162,7 @@ const editConfig = (config) => {
     name: config.name,
     service_type: config.service_type,
     role: config.role,
-    api_key: config.api_key,
+    api_key: '',
     base_url: config.base_url,
     model_name: config.model_name,
     max_tokens: config.max_tokens,
@@ -184,7 +184,9 @@ const saveConfig = async () => {
   saving.value = true
   try {
     if (editingConfig.value) {
-      await api.put(`/api-testing/ai-service-configs/${editingConfig.value.id}/`, form)
+      const data = { ...form }
+      if (!data.api_key) delete data.api_key
+      await api.put(`/api-testing/ai-service-configs/${editingConfig.value.id}/`, data)
       ElMessage.success(t('apiTesting.aiServiceConfig.messages.updateSuccess'))
     } else {
       await api.post('/api-testing/ai-service-configs/', form)

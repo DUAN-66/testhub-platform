@@ -11,6 +11,7 @@ from ..engine import ApiRunner, RunContext
 from ..models import RequestHistory, TestExecution
 from .execution_events import ExecutionEventLogger
 from .state_machine import ExecutionStateMachine, InvalidExecutionTransition
+from .http_transport import RestrictedHttpClient
 
 
 _SENSITIVE_KEY = re.compile(
@@ -23,11 +24,30 @@ class ApiExecutionService:
     """Django persistence boundary around the framework-independent runner."""
 
     def __init__(self, *, runner: ApiRunner | None = None) -> None:
-        self.runner = runner or ApiRunner()
+        self.runner = runner or ApiRunner(http_client=RestrictedHttpClient())
 
     def create_context(self, environment: Any = None) -> RunContext:
         variables = environment.variables if environment else {}
         return RunContext.from_environment(variables, dynamic_resolver=VariableResolver())
+
+    @staticmethod
+    def validate_environment_access(environment: Any, user: Any) -> None:
+        if environment is None:
+            return
+        if environment.scope == 'GLOBAL' and environment.created_by_id != user.id:
+            raise ValueError('无权使用其他用户的全局环境')
+        if environment.scope == 'LOCAL' and (not environment.project_id or
+                (environment.project.owner_id != user.id and not environment.project.members.filter(pk=user.id).exists())):
+            raise ValueError('无权使用该项目环境')
+
+    @classmethod
+    def validate_suite_access(cls, suite: Any, user: Any, environment: Any = None) -> None:
+        if not user.is_active or (suite.project.owner_id != user.id and not suite.project.members.filter(pk=user.id).exists()):
+            raise ValueError('无权执行该项目套件')
+        environment = environment if environment is not None else suite.environment
+        cls.validate_environment_access(environment, user)
+        if environment and environment.scope == 'LOCAL' and environment.project_id != suite.project_id:
+            raise ValueError('执行环境必须属于当前项目')
 
     def execute_request(
         self,
@@ -40,6 +60,7 @@ class ApiExecutionService:
         assertions: list[Mapping[str, Any]] | None = None,
         extractors: list[Mapping[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        self.validate_environment_access(environment, executed_by)
         context = context or self.create_context(environment)
         definition = self._request_definition(api_request, overrides)
         effective_assertions = list(assertions if assertions is not None else definition.pop('assertions', []))
@@ -101,6 +122,7 @@ class ApiExecutionService:
 
     def create_suite_execution(self, test_suite: Any, executed_by: Any) -> TestExecution:
         """Create the durable command record before sync or async dispatch."""
+        self.validate_suite_access(test_suite, executed_by)
         execution = TestExecution.objects.create(
             test_suite=test_suite,
             status='PENDING',
@@ -137,6 +159,8 @@ class ApiExecutionService:
         test_suite = execution.test_suite
         environment = environment if environment is not None else test_suite.environment
         executed_by = execution.executed_by
+        # Recheck after queueing: membership and environment bindings can change.
+        self.validate_suite_access(test_suite, executed_by, environment)
         ExecutionStateMachine.transition(
             execution.id,
             'RUNNING',

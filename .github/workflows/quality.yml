@@ -45,8 +45,26 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm audit --registry=https://registry.npmjs.org
       - run: npm run lint
+      - run: npm run test:security
       - run: npm run build
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements/dev.txt pip-audit==2.10.1
+      - run: python scripts/verify_security.py
+      - run: pip-audit -r requirements/api.txt --progress-spinner off --format json --output dependency-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audit
+          path: dependency-audit.json
 
   integration:
     runs-on: ubuntu-latest
@@ -97,6 +115,7 @@ jobs:
           exit 1
       - run: python scripts/verify_demo.py --password 'TestHubDemo!2026'
       - run: python scripts/verify_quality_gate.py --password 'TestHubDemo!2026'
+      - run: python scripts/verify_security_integration.py --password 'TestHubDemo!2026'
       - run: python scripts/verify_realtime.py --base-url http://127.0.0.1:8000 --password 'TestHubDemo!2026' --output docs/secondary-development/redis-realtime-verification.json
       - uses: actions/upload-artifact@v4
         if: always()
@@ -109,6 +128,7 @@ jobs:
             backend.log
             worker.log
             quality-gate-verification.json
+            security-integration.json
 
   containers:
     runs-on: ubuntu-latest
@@ -118,12 +138,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install requests==2.32.4 websocket-client==1.8.0
+      - run: pip install requests==2.34.2 websocket-client==1.8.0
       - run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml up --build --detach --wait --wait-timeout 240
       - run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml exec -T backend python manage.py check
       - run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml exec -T backend python manage.py makemigrations --check --dry-run
       - run: python scripts/verify_demo.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026' --output docs/secondary-development/container-verification.json
       - run: python scripts/verify_quality_gate.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026'
+      - run: python scripts/verify_security_integration.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026' --frontend
       - run: python scripts/verify_realtime.py --password 'TestHubDemo!2026'
       - name: Collect container status and logs
         if: always()
@@ -140,5 +161,6 @@ jobs:
             container-status.log
             container-services.log
             quality-gate-verification.json
+            security-integration.json
       - if: always()
         run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml down

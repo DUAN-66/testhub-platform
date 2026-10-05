@@ -716,7 +716,7 @@
                           <pre>{{ jsonPathResult }}</pre>
                         </div>
                       </div>
-                      <div class="response-content" v-html="highlightedResponseBody"></div>
+                      <ResponseBody :body="responseBody" />
                     </div>
                   </el-tab-pane>
 
@@ -979,6 +979,7 @@ import api from '@/utils/api'
 import KeyValueEditor from './components/KeyValueEditor.vue'
 import DataFactorySelector from '@/components/DataFactorySelector.vue'
 import { RequestModelParser } from '@/utils/requestModel'
+import ResponseBody from './components/ResponseBody.vue'
 import { getVariableFunctions } from '@/api/data-factory'
 import { CodeGenerator } from '@/utils/codeGenerator'
 import { debounce } from 'lodash-es'
@@ -1708,21 +1709,6 @@ const convertKeyValueArrayToObject = (input) => {
   })
   return obj
 }
-
-const highlightedResponseBody = computed(() => {
-  if (!responseBody.value) return ''
-
-  try {
-    // 简单的 JSON 语法高亮
-    return responseBody.value
-      .replace(/"([^"]+)"\s*:/g, '<span style="color: #268bd2;">"$1"</span>:')
-      .replace(/:\s*"([^"]+)"/g, ': <span style="color: #2aa198;">"$1"</span>')
-      .replace(/:\s*(true|false|null)/g, ': <span style="color: #cb4b16;">$1</span>')
-      .replace(/:\s*([0-9]+(\.[0-9]+)?)/g, ': <span style="color: #d33682;">$1</span>')
-  } catch (e) {
-    return responseBody.value
-  }
-})
 
 const getStatusType = (status) => {
   if (status >= 200 && status < 300) return 'success'

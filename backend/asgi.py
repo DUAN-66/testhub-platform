@@ -31,12 +31,25 @@ class _HttpRouter:
         if (
             scope.get('type') == 'http'
             and scope.get('path') in ('/api/mcp', '/api/mcp/')
-            and getattr(django_settings, 'MCP_ENABLED', True)
+            and getattr(django_settings, 'MCP_ENABLED', False)
+            and not django_settings.CORE_ONLY_MODE
         ):
             from apps.mcp.server import mcp_bridge
             await mcp_bridge(scope, receive, send)
             return
         await self.django_app(scope, receive, send)
+
+
+class _WebSocketBoundary:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        from django.conf import settings
+        if settings.CORE_ONLY_MODE and not scope.get('path', '').startswith('/ws/api-testing/executions/'):
+            await send({'type': 'websocket.close', 'code': 4403})
+            return
+        await self.app(scope, receive, send)
 
 
 try:
@@ -55,9 +68,9 @@ try:
 
     application = ProtocolTypeRouter({
         "http": _HttpRouter(django_asgi_app),
-        "websocket": AuthMiddlewareStack(
+        "websocket": _WebSocketBoundary(AuthMiddlewareStack(
             URLRouter(websocket_urlpatterns)
-        ),
+        )),
     })
     logger.info("ASGI 已启用 WebSocket 支持 (需通过 Daphne 启动)")
 except ImportError:

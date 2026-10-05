@@ -12,12 +12,13 @@
 - 独立 Celery 执行、状态机、任务取消、Redis WebSocket 实时日志、敏感字段脱敏。
 - 可视化门禁页面、CI 命令行工具、持久化报告；通过率与 P95 预算参与决策，缺失或未完成证据不放行。
 - GitHub Actions 验证单元测试、前端、真实 MySQL/Redis 联调与 Docker 完整链路，并保存验收证据。
+- 对复用链路做安全回归与加固：对象权限、环境凭据隔离、CSRF、响应 XSS、HTTP 出站策略、原子登录码兑换、依赖升级与默认模块隔离。详见 [安全检查与验证](docs/secondary-development/security-review.md)。
 
 **五分钟演示**：启动隔离环境后进入“接口测试 → 契约质量门禁”，选择 `QualityGate 演示` 项目。比较 baseline 与 compatible 应 PASS；比较 baseline 与 breaking 应 BLOCK，即使 HTTP 断言全部通过。详见 [运行、设计与限制](docs/secondary-development/quality-gate.md)。
 
 ### 验证结果
 
-全仓回归 **460 项通过、3 项因环境条件跳过**；新增契约与门禁专项测试 **56 项通过**，契约分析引擎覆盖率 **97%**、门禁决策引擎 **100%**。[验收流水线](https://github.com/DUAN-66/testhub-platform/actions/runs/37278693958) 包含后端、前端、真实 MySQL/Redis 联调和 Docker 验收，四组任务全部通过。
+全仓回归 **505 项通过、3 项因环境条件跳过**；安全专项 **45 项后端回归、4 项前端恶意响应测试**通过。契约与门禁专项 **56 项通过**，契约分析引擎覆盖率 **97%**、门禁决策引擎 **100%**。前后端 API 依赖审计均为 **0 项已知漏洞**。[验收流水线](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml) 包含后端、前端、安全审计、真实 MySQL/Redis 联调及 Docker 验收；结果与范围见 [安全检查记录](docs/secondary-development/security-review.md)。
 
 ### 上游能力与扩展方向
 
@@ -30,7 +31,7 @@
 **接口持续测试与发布质量门禁**
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
-[![Django](https://img.shields.io/badge/Django-4.2-green.svg)](https://www.djangoproject.com/)
+[![Django](https://img.shields.io/badge/Django-5.2_LTS-green.svg)](https://www.djangoproject.com/)
 [![Vue](https://img.shields.io/badge/Vue-3.3-brightgreen.svg)](https://vuejs.org/)
 [![License](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENSE)
 
@@ -82,14 +83,14 @@
 - 标签管理与使用记录，支持在 API 测试与 UI 测试中直接引用数据
 
 ### 🔐 安全与协作
-- JWT 双 Token 机制：自动刷新续期、登出黑名单、防重放攻击
+- JWT 双 Token 机制：自动刷新续期、登出黑名单；一次性登录码原子兑换
 - 多项目管理、成员角色权限控制、版本规划
 - 统一通知：邮件 + 企业微信 / 钉钉 / 飞书 Webhook 机器人
 
 ## 🏗️ 技术架构
 
 ### 后端
-- **框架**: Django 4.2 + Django REST Framework
+- **框架**: Django 5.2 LTS + Django REST Framework
 - **数据库**: MySQL 8.0+
 - **认证**: JWT（rest_framework_simplejwt）+ Token 黑名单
 - **自动化**: Selenium、Playwright、Airtest + OCR、Allure
@@ -154,8 +155,8 @@ testhub_platform/
 
 1. **克隆项目**
 ```bash
-git clone <repository-url>
-cd testhub_platform
+git clone https://github.com/DUAN-66/testhub-platform.git
+cd testhub-platform
 ```
 
 2. **创建虚拟环境并安装依赖**
@@ -169,8 +170,7 @@ source venv/bin/activate
 # 默认：接口测试二开与开发验证
 pip install -r requirements.txt
 
-# 完整平台（浏览器、APP、AI 等可选能力）
-# pip install -r requirements_full.txt
+# 可选引擎依赖参见 requirements/，部署前须进行专项验证
 # 完整回归测试收集所需依赖
 # pip install -r requirements/regression.txt
 ```
@@ -179,7 +179,11 @@ pip install -r requirements.txt
 ```bash
 # 复制模板并按需修改数据库、Redis、邮箱等配置
 cp .env.example .env
+# 生成独立随机密钥，写入 .env 的 SECRET_KEY；不要提交真实值
+python -c "import secrets; print(secrets.token_urlsafe(64))"
 ```
+
+模板默认为生产安全配置，须配好 HTTPS 入口与明确的接口目标白名单。只做本机演示可直接使用 [隔离演示步骤](docs/secondary-development/delivery.md)，无需复制生产模板；公网部署范围与代理配置见 [安全记录](docs/secondary-development/security-review.md)。
 
 4. **初始化数据库**
 ```bash
@@ -205,7 +209,7 @@ python manage.py load_component_pack
 python manage.py runserver
 
 # 如需 WebSocket（接口/APP 自动化实时进度），改用 Daphne 启动
-daphne -b 0.0.0.0 -p 8000 backend.asgi:application
+daphne -b 127.0.0.1 -p 8000 backend.asgi:application
 
 # 定时任务调度器（API / UI 定时任务，可选）
 python manage.py run_all_scheduled_tasks
@@ -219,7 +223,7 @@ celery -A backend worker -l info
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev        # 开发模式
 npm run build      # 生产构建
 ```
@@ -234,7 +238,7 @@ npm run build      # 生产构建
 ### Docker 部署（可选）
 
 ```bash
-# 首次使用前必须在 .env 中设置 DB_PASSWORD 和 MYSQL_ROOT_PASSWORD
+# 首次使用前在 .env 设置随机 SECRET_KEY、独立数据库密码与生产 HTTPS 配置
 docker compose up -d --build
 ```
 

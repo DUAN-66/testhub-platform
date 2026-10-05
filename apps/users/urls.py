@@ -1,4 +1,5 @@
 from django.urls import path
+from django.conf import settings
 from . import views, test_views
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -8,7 +9,6 @@ urlpatterns = [
     path('', views.UserListView.as_view()),
     path('me/', views.get_current_user, name='get_current_user'),
     path('register/', views.RegisterView.as_view(), name='register'),
-    path('test-register/', test_views.test_register, name='test-register'),  # 测试注册接口
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('profile/', views.profile_view, name='profile'),
@@ -20,3 +20,6 @@ urlpatterns = [
     path('sms-login/', views.sms_login_view, name='sms_login'),                 # 短信验证码登录
     path('exchange-token/', views.exchange_token_view, name='exchange_token'),  # SSO 授权码交换
 ]
+
+if settings.DEBUG:
+    urlpatterns.append(path('test-register/', test_views.test_register, name='test-register'))

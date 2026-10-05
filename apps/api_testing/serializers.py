@@ -43,7 +43,7 @@ def can_access_project(project, user):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'first_name', 'last_name']
 
 
 class ApiProjectSerializer(serializers.ModelSerializer):
@@ -64,6 +64,8 @@ class ApiProjectSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         # 将空字符串转换为 None
+        if self.instance and 'member_ids' in attrs and self.instance.owner_id != self.context['request'].user.id:
+            raise serializers.ValidationError({'member_ids': '只有项目负责人可以修改成员'})
         if 'start_date' in attrs and attrs['start_date'] == '':
             attrs['start_date'] = None
         if 'end_date' in attrs and attrs['end_date'] == '':
@@ -106,6 +108,23 @@ class ApiCollectionSerializer(serializers.ModelSerializer):
     def get_children(self, obj):
         children = obj.children.all()
         return ApiCollectionSerializer(children, many=True).data
+
+    def validate(self, attrs):
+        project = attrs.get('project', getattr(self.instance, 'project', None))
+        parent = attrs.get('parent', getattr(self.instance, 'parent', None))
+        if project and not can_access_project(project, self.context['request'].user):
+            raise serializers.ValidationError({'project': '无权访问该项目'})
+        if self.instance and project.id != self.instance.project_id:
+            raise serializers.ValidationError({'project': '集合所属项目不能更改'})
+        if parent and parent.project_id != project.id:
+            raise serializers.ValidationError({'parent': '父集合必须属于同一项目'})
+        visited = {self.instance.id} if self.instance else set()
+        while parent:
+            if parent.id in visited:
+                raise serializers.ValidationError({'parent': '父集合不能构成循环'})
+            visited.add(parent.id)
+            parent = parent.parent
+        return attrs
 
 
 class ApiRequestSerializer(ExecutionRulesMixin, serializers.ModelSerializer):
@@ -228,6 +247,8 @@ class TestSuiteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'project': '无权访问该项目'})
         if environment and environment.scope == 'LOCAL' and environment.project_id != project.id:
             raise serializers.ValidationError({'environment': '执行环境必须属于当前项目或为全局环境'})
+        if environment and environment.scope == 'GLOBAL' and environment.created_by_id != self.context['request'].user.id:
+            raise serializers.ValidationError({'environment': '无权使用其他用户的全局环境'})
         return attrs
 
     def create(self, validated_data):
@@ -860,6 +881,7 @@ class OperationLogSerializer(serializers.ModelSerializer):
 
 
 class AIServiceConfigSerializer(serializers.ModelSerializer):
+    api_key = serializers.CharField(write_only=True, required=False)
     """AI服务配置序列化器"""
     service_type_display = serializers.CharField(source='get_service_type_display', read_only=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
@@ -876,5 +898,7 @@ class AIServiceConfigSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'created_by']
 
     def create(self, validated_data):
+        if not validated_data.get('api_key'):
+            raise serializers.ValidationError({'api_key': 'API Key is required'})
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)

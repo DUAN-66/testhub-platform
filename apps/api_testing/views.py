@@ -1,4 +1,5 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, mixins
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -102,6 +103,8 @@ class ApiProjectViewSet(viewsets.ModelViewSet):
     
     def perform_destroy(self, instance):
         """删除项目时记录日志"""
+        if instance.owner_id != self.request.user.id:
+            raise PermissionDenied('只有项目负责人可以删除项目')
         log_operation(
             operation_type='delete',
             resource_type='project',
@@ -358,7 +361,7 @@ class ApiRequestViewSet(viewsets.ModelViewSet):
         try:
             if environment_id:
                 environment = EnvironmentViewSet.queryset.filter(
-                    models.Q(scope='GLOBAL') | models.Q(project__owner=request.user)
+                    models.Q(scope='GLOBAL', created_by=request.user) | models.Q(scope='LOCAL', project__owner=request.user)
                     | models.Q(project__members=request.user)
                 ).distinct().get(id=environment_id)
             result = execute_api_request(
@@ -396,7 +399,7 @@ class EnvironmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         return Environment.objects.filter(
-            models.Q(scope='GLOBAL') | 
+            models.Q(scope='GLOBAL', created_by=user) |
             models.Q(
                 scope='LOCAL',
                 project__in=ApiProject.objects.filter(
@@ -418,7 +421,7 @@ class EnvironmentViewSet(viewsets.ModelViewSet):
             ).update(is_active=False)
         # 如果是全局环境，取消其他全局环境的激活状态
         elif environment.scope == 'GLOBAL':
-            Environment.objects.filter(scope='GLOBAL').update(is_active=False)
+            Environment.objects.filter(scope='GLOBAL', created_by=request.user).update(is_active=False)
         
         environment.is_active = True
         environment.save()
@@ -459,7 +462,7 @@ class EnvironmentViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-class RequestHistoryViewSet(viewsets.ModelViewSet):
+class RequestHistoryViewSet(mixins.DestroyModelMixin, viewsets.ReadOnlyModelViewSet):
     queryset = RequestHistory.objects.all()
     serializer_class = RequestHistorySerializer
     permission_classes = [IsAuthenticated]
@@ -1257,7 +1260,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['username', 'email', 'first_name', 'last_name']
+    search_fields = ['username', 'first_name', 'last_name']
 
 
 class ScheduledTaskViewSet(viewsets.ModelViewSet):

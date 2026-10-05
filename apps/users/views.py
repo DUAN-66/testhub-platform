@@ -1,14 +1,16 @@
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from django.contrib.auth import login, logout
+from django.contrib.auth import logout
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .models import User
-from .serializers import UserSerializer, UserCreateSerializer, LoginSerializer
+from .serializers import UserSerializer, UserSimpleSerializer, UserCreateSerializer, LoginSerializer
 
 # JWT 相关导入
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
+from rest_framework.exceptions import PermissionDenied
 
 # 图形验证码 & 短信验证码
 from .captcha import create_captcha
@@ -30,6 +32,8 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     
     def create(self, request, *args, **kwargs):
+        if not settings.REGISTRATION_ENABLED:
+            raise PermissionDenied('Account registration is disabled')
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -54,7 +58,8 @@ def login_view(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']
-    login(request, user)
+    # API login returns JWTs only; browser sessions are created by Django's
+    # CSRF-protected admin login, not by this anonymous token endpoint.
 
     # JWT Token (优先使用JWT)
     refresh = RefreshToken.for_user(user)
@@ -94,15 +99,22 @@ def profile_view(request):
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
 
-class UserListView(generics.ListCreateAPIView):
+class UserListView(generics.ListAPIView):
     queryset = User.objects.all().order_by('username')
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        return UserSerializer if self.request.user.is_staff else UserSimpleSerializer
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all().order_by('username')
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset if self.request.user.is_staff else queryset.filter(pk=self.request.user.pk)
 
 
 # ========== 图形验证码 & 短信验证码 ==========
@@ -208,7 +220,7 @@ def exchange_token_view(request):
     if action == 'create':
         if not request.user.is_authenticated:
             return Response({'error': '未登录'}, status=status.HTTP_401_UNAUTHORIZED)
-        code = str(uuid.uuid4()).replace('-', '')[:8]
+        code = uuid.uuid4().hex
         redis_client.setex(f"exchange:{code}", 60, request.user.id)
         return Response({'code': code})
 
@@ -217,12 +229,10 @@ def exchange_token_view(request):
         if not code:
             return Response({'error': '缺少授权码'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user_id = redis_client.get(f"exchange:{code}")
+        # GETDEL is atomic: concurrent redeems cannot both mint JWTs.
+        user_id = redis_client.getdel(f"exchange:{code}")
         if user_id is None:
             return Response({'error': '授权码无效或已过期'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # 立即删除，保证一次性使用
-        redis_client.delete(f"exchange:{code}")
 
         try:
             user = User.objects.get(id=int(user_id))

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Mapping
+import math
 
 from .context import RunContext
 
@@ -57,9 +58,10 @@ class RequestBuilder:
         params = self._key_values(definition.get('params'), context, stringify=False)
         auth = self._build_auth(definition.get('auth'), headers, context)
         json_body, data_body = self._build_body(method, definition.get('body'), context)
-        timeout = float(definition.get('timeout') or definition.get('timeout_seconds') or 30)
-        if timeout <= 0:
-            raise ValueError('请求超时时间必须大于 0')
+        timeout_value = definition.get('timeout', definition.get('timeout_seconds', 30))
+        timeout = float(30 if timeout_value is None else timeout_value)
+        if not math.isfinite(timeout) or not 0 < timeout <= 120:
+            raise ValueError('请求超时时间必须为 0 到 120 秒之间的有限数值')
 
         return RequestSpec(method, url, headers, params, json_body, data_body, auth, timeout)
 

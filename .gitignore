@@ -88,6 +88,8 @@ demo.sqlite3
 regression-results.xml
 quality-gate-verification.json
 gate-report.json
+dependency-audit.json
+security-integration.json
 coverage.xml
 docs/secondary-development/coverage/
 *.sqlite3

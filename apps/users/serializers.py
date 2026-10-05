@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from .models import User, UserProfile
 
 class UserSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'avatar')
+        fields = ('id', 'username', 'avatar')
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
                  'avatar', 'phone', 'department', 'position', 'is_active',
                  'date_joined', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'date_joined', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'date_joined', 'created_at', 'updated_at', 'is_active']
 
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
@@ -27,6 +29,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError("密码不一致")
+        try:
+            validate_password(attrs['password'], User(username=attrs.get('username', ''), email=attrs.get('email', '')))
+        except ValidationError as exc:
+            raise serializers.ValidationError({'password': exc.messages}) from exc
         return attrs
     
     def create(self, validated_data):

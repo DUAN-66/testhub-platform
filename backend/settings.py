@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -10,9 +11,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 def parse_csv(value):
     return [item.strip() for item in value.split(',') if item.strip()]
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-here')
+SECRET_KEY = config('SECRET_KEY', default='')
 
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)
+if DEBUG and not SECRET_KEY:
+    SECRET_KEY = 'local-demo-only-key-change-before-deployment-2026'
+if not DEBUG and (len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5 or 'your-secret' in SECRET_KEY or SECRET_KEY.startswith('django-insecure-')):
+    raise ImproperlyConfigured('Production requires a non-placeholder SECRET_KEY of at least 50 characters')
 
 # 根据DEBUG模式设置ALLOWED_HOSTS，生产环境不应使用通配符
 if DEBUG:
@@ -20,9 +25,22 @@ if DEBUG:
 else:
     ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1',
                            cast=parse_csv)
+    if '*' in ALLOWED_HOSTS:
+        raise ImproperlyConfigured('Wildcard ALLOWED_HOSTS is not permitted in production')
+
+REGISTRATION_ENABLED = config('REGISTRATION_ENABLED', default=DEBUG, cast=bool)
+CORE_ONLY_MODE = config('CORE_ONLY_MODE', default=not DEBUG, cast=bool)
+API_TEST_ALLOWED_HOSTS = config('API_TEST_ALLOWED_HOSTS', default='127.0.0.1,localhost' if DEBUG else '', cast=parse_csv)
+API_TEST_MAX_RESPONSE_BYTES = config('API_TEST_MAX_RESPONSE_BYTES', default=2_000_000, cast=int)
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SECURE_REDIRECT_EXEMPT = [r'^health/$']
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
 
 DJANGO_APPS = [
-    'simpleui',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -51,10 +69,10 @@ REGISTRATION_STATS_VISIBLE_USERNAMES = config(
     cast=parse_csv,
 )
 APP_USE_HTTPS = config('APP_USE_HTTPS', default=not DEBUG, cast=bool)
-TRUST_PROXY_SSL_HEADER = config('TRUST_PROXY_SSL_HEADER', default=APP_USE_HTTPS, cast=bool)
+TRUST_PROXY_SSL_HEADER = config('TRUST_PROXY_SSL_HEADER', default=False, cast=bool)
 
 # MCP Server 总开关（协议端点 /api/mcp/，需 Daphne/ASGI 部署）
-MCP_ENABLED = config('MCP_ENABLED', default=True, cast=bool)
+MCP_ENABLED = config('MCP_ENABLED', default=False, cast=bool)
 # MCP 危险操作人工审批模式：开启后 confirm_* 不再直接执行，
 # 转为等待 MCP 控制台人工批准（Agent 轮询 get_approval_status 取结果）
 MCP_HUMAN_APPROVAL = config('MCP_HUMAN_APPROVAL', default=False, cast=bool)
@@ -101,9 +119,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'backend.middleware.CoreModuleBoundaryMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'backend.middleware.DisableCSRFMiddleware',  # 添加CSRF禁用中间件
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

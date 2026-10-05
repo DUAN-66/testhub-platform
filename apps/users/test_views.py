@@ -21,6 +21,9 @@ def _validate_phone(phone):
 @csrf_exempt
 @require_http_methods(["POST"])
 def test_register(request):
+    from django.conf import settings
+    if not settings.DEBUG or not settings.REGISTRATION_ENABLED:
+        return JsonResponse({'error': 'Registration is disabled'}, status=403)
     try:
         data = json.loads(request.body)
 

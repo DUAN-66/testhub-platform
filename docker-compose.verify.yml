@@ -10,6 +10,7 @@ x-backend: &backend
     DEBUG: 'True'
     SECRET_KEY: verification-only-testhub-key-2026-not-for-production
     MCP_ENABLED: 'False'
+    API_TEST_ALLOWED_HOSTS: demo-api
     DB_HOST: mysql
     DB_NAME: testhub_verify
     DB_USER: testhub_verify

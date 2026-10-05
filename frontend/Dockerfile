@@ -25,6 +25,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # 复制自定义 Nginx 配置（可选）
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.conf /etc/nginx/testhub-security-headers.conf
 
 # 暴露端口
 EXPOSE 80

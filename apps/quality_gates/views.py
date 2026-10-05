@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from apps.api_testing.models import ApiProject, TestExecution, TestSuite
 from apps.api_testing.services.dispatch import dispatch_test_suite
+from apps.api_testing.services import ApiExecutionService
 from apps.contracts.engine import ContractError, digest, normalize
 from apps.contracts.models import ContractVersion
 from .engine import evaluate, validate_policy
@@ -105,6 +106,12 @@ class QualityViewSet(viewsets.GenericViewSet):
             policy = validate_policy(data['policy'])
         except ValueError as exc:
             raise ValidationError({'policy': str(exc)}) from exc
+        # A plan must not resolve private environment values on behalf of another member.
+        try:
+            for suite in TestSuite.objects.filter(project_id=baseline.project_id).select_related('environment', 'project'):
+                ApiExecutionService.validate_suite_access(suite, request.user)
+        except ValueError as exc:
+            raise ValidationError({'environment': str(exc)}) from exc
         diff, impact = analyze(baseline, candidate)
         return data, baseline, candidate, diff, impact, policy
 

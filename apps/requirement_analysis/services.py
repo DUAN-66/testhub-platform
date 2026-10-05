@@ -7,10 +7,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-try:
-    from PyPDF2 import PdfReader
-except ImportError:
-    from PyPDF2 import PdfFileReader as PdfReader
+from pypdf import PdfReader
     
 try:
     import docx
