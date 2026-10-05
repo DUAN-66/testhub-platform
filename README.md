@@ -279,17 +279,10 @@ Compose 会启动 MySQL、Redis、Django/Daphne、Celery worker 与前端 Nginx�
 
 本项目采用 GPL 3.0 许可证 - 详见 [LICENSE](LICENSE) 文件
 
-## 📧 联系方式
+## 问题反馈
 
-如有问题或建议，欢迎通过 Issue 反馈，也可以扫码添加作者，加入官方交流群。
-![img_1.png](static_files/img_1.png)
+本项目的问题与建议请提交到 [GitHub Issues](https://github.com/DUAN-66/testhub-platform/issues)。
 
-<u>[TestHub 官网](https://testhub.aisky.cloud)</u>
+## 上游致谢
 
-使用手册、视频教程、学习中心、Skills商店，欢迎访问TestHub官网。
-![img_2.png](static_files/img_2.png)
----
-
-<div align="center">
-Made with ❤️ by 大刚（公众号：测试开发实战）
-</div>
+感谢上游 [TestHub](https://github.com/chenjigang4167/testhub_platform) 及原作者大刚提供的平台基础。本仓库的新增开发范围见“个人负责的核心开发与测试”，并继续遵循 GPL-3.0 许可证。
