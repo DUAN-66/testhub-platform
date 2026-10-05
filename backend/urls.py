@@ -34,6 +34,8 @@ urlpatterns = [
     path('api/app-automation/', include('apps.app_automation.urls')),  # APP自动化测试
     path('api/', include('apps.api_testing.urls')),
     path('api/v1/', include('apps.quality_gates.urls')),
+    path('api/v1/', include('apps.load_testing.urls')),
+    path('api/demo-commerce/', include('apps.commerce_demo.urls')),
     path('api/core/', include('apps.core.urls')),
     path('api/data-factory/', include('apps.data_factory.urls')),
     path('api/llm-judge/', include('apps.llm_judge.urls')),

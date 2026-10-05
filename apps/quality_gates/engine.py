@@ -1,14 +1,18 @@
 """Pure, deterministic release decisions with explicit evidence for every rule."""
 import math
+from apps.load_testing.policy import validate_performance_policy, evaluate_performance
 
 DEFAULT_POLICY = {'min_pass_rate': 100.0, 'max_p95_ms': 1000.0}
 
 
 def validate_policy(policy):
-    if not isinstance(policy, dict) or set(policy) - set(DEFAULT_POLICY):
+    if not isinstance(policy, dict) or set(policy) - {*DEFAULT_POLICY, 'performance'}:
         raise ValueError('Unknown quality gate policy field')
     policy = {**DEFAULT_POLICY, **policy}
     for key, value in policy.items():
+        if key == 'performance':
+            policy[key] = validate_performance_policy(value)
+            continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
             raise ValueError('Policy values must be finite numbers')
     if not 0 <= policy['min_pass_rate'] <= 100 or policy['max_p95_ms'] <= 0:
@@ -16,7 +20,7 @@ def validate_policy(policy):
     return policy
 
 
-def evaluate(diff, impact, executions, policy=None):
+def evaluate(diff, impact, executions, policy=None, performance_evidence=None):
     policy = validate_policy({} if policy is None else policy)
     rules = []
 
@@ -58,6 +62,9 @@ def evaluate(diff, impact, executions, policy=None):
         rule('P95_LATENCY_MS', p95 is not None and p95 <= policy['max_p95_ms'], p95, policy['max_p95_ms'])
     else:
         pass_rate, p95 = None, None
+    if 'performance' in policy:
+        rules.extend(evaluate_performance(policy['performance'], performance_evidence))
     return {'decision': 'PASS' if all(item['passed'] for item in rules) else 'BLOCK', 'rules': rules,
             'metrics': {'requests': total, 'passed': passed, 'pass_rate': pass_rate, 'p95_ms': p95},
-            'policy': policy, 'percentile_method': 'nearest-rank', 'evidence_schema': 'qualitygate/v1'}
+            'performance': performance_evidence, 'policy': policy,
+            'percentile_method': 'nearest-rank', 'evidence_schema': 'qualitygate/v2'}

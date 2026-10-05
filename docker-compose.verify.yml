@@ -10,7 +10,8 @@ x-backend: &backend
     DEBUG: 'True'
     SECRET_KEY: verification-only-testhub-key-2026-not-for-production
     MCP_ENABLED: 'False'
-    API_TEST_ALLOWED_HOSTS: demo-api
+    API_TEST_ALLOWED_HOSTS: demo-api,backend
+    PERFORMANCE_ALLOWED_HOSTS: backend
     DB_HOST: mysql
     DB_NAME: testhub_verify
     DB_USER: testhub_verify
@@ -53,6 +54,7 @@ services:
       sh -c "python manage.py migrate --noinput &&
       python manage.py seed_api_demo --password 'TestHubDemo!2026' --base-url http://demo-api:8089 &&
       python manage.py seed_quality_demo --password 'TestHubDemo!2026' --base-url http://demo-api:8089 &&
+      python manage.py seed_performance_demo --password 'TestHubDemo!2026' --base-url http://backend:8000 &&
       daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
     ports: ['127.0.0.1:18000:8000']
     depends_on:

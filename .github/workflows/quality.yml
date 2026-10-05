@@ -22,8 +22,8 @@ jobs:
       - run: python manage.py check --settings=backend.test_settings
       - run: python manage.py makemigrations --check --dry-run --settings=backend.test_settings
       - run: python manage.py migrate --noinput --settings=backend.test_settings
-      - run: pytest apps/contracts/tests apps/quality_gates/tests --cov=apps.contracts.engine --cov=apps.quality_gates.engine --cov-fail-under=95 --cov-report=term
-      - run: pytest apps/api_testing/tests apps/core/tests.py apps/contracts/tests apps/quality_gates/tests --junitxml=test-results.xml --cov=apps.api_testing.engine --cov=apps.api_testing.services --cov=apps.contracts --cov=apps.quality_gates --cov-report=xml
+      - run: pytest apps/contracts/tests apps/quality_gates/tests apps/load_testing/tests --cov=apps.contracts.engine --cov=apps.quality_gates.engine --cov-fail-under=95 --cov-report=term
+      - run: pytest apps/api_testing/tests apps/core/tests.py apps/contracts/tests apps/quality_gates/tests apps/load_testing/tests apps/commerce_demo/tests --junitxml=test-results.xml --cov=apps.api_testing.engine --cov=apps.api_testing.services --cov=apps.contracts --cov=apps.quality_gates --cov=apps.load_testing --cov-report=xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -103,6 +103,7 @@ jobs:
       - run: python manage.py migrate --noinput
       - run: python manage.py seed_api_demo --password 'TestHubDemo!2026'
       - run: python manage.py seed_quality_demo --password 'TestHubDemo!2026'
+      - run: python manage.py seed_performance_demo --password 'TestHubDemo!2026'
       - name: Start local test services
         run: |
           python scripts/demo_api.py > demo-api.log 2>&1 &
@@ -116,6 +117,7 @@ jobs:
       - run: python scripts/verify_demo.py --password 'TestHubDemo!2026'
       - run: python scripts/verify_quality_gate.py --password 'TestHubDemo!2026'
       - run: python scripts/verify_security_integration.py --password 'TestHubDemo!2026'
+      - run: python scripts/verify_performance.py --password 'TestHubDemo!2026'
       - run: python scripts/verify_realtime.py --base-url http://127.0.0.1:8000 --password 'TestHubDemo!2026' --output docs/secondary-development/redis-realtime-verification.json
       - uses: actions/upload-artifact@v4
         if: always()
@@ -128,6 +130,7 @@ jobs:
             backend.log
             worker.log
             quality-gate-verification.json
+            performance-verification.json
             security-integration.json
 
   containers:
@@ -144,6 +147,7 @@ jobs:
       - run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml exec -T backend python manage.py makemigrations --check --dry-run
       - run: python scripts/verify_demo.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026' --output docs/secondary-development/container-verification.json
       - run: python scripts/verify_quality_gate.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026'
+      - run: python scripts/verify_performance.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026'
       - run: python scripts/verify_security_integration.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026' --frontend
       - run: python scripts/verify_realtime.py --password 'TestHubDemo!2026'
       - name: Collect container status and logs
@@ -161,6 +165,7 @@ jobs:
             container-status.log
             container-services.log
             quality-gate-verification.json
+            performance-verification.json
             security-integration.json
       - if: always()
         run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml down

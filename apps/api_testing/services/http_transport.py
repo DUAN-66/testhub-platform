@@ -10,6 +10,9 @@ from django.conf import settings
 
 
 class RestrictedHttpClient:
+    def __init__(self, *, allowed_hosts=None):
+        self.allowed_hosts = settings.API_TEST_ALLOWED_HOSTS if allowed_hosts is None else allowed_hosts
+
     def request(self, **kwargs):
         try:
             target = urlsplit(kwargs['url'])
@@ -17,7 +20,7 @@ class RestrictedHttpClient:
             target.port  # Validate malformed/out-of-range ports before connecting.
         except (ValueError, TypeError) as exc:
             raise ValueError('Invalid target URL') from exc
-        allowed = {item.lower().rstrip('.') for item in settings.API_TEST_ALLOWED_HOSTS}
+        allowed = {item.lower().rstrip('.') for item in self.allowed_hosts}
         if target.scheme not in {'http', 'https'} or not host or target.username is not None or target.password is not None:
             raise ValueError('Only HTTP(S) URLs without embedded credentials are permitted')
         if host not in allowed or '*' in allowed:

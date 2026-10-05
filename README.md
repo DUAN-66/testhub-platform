@@ -1,10 +1,13 @@
-# TestHub QualityGate — 契约变更驱动的接口回归平台
+# TestHub QualityGate — 接口回归与并发性能质量门禁
 
 本仓库基于 [chenjigang4167/testhub_platform](https://github.com/chenjigang4167/testhub_platform) 二次开发，保留 GPL-3.0 许可证与上游归属。核心新增能力是 **OpenAPI 契约变更分析 → 受影响套件选择 → Celery 回归执行 → 可追溯质量门禁**。原有模块与本次独立开发范围在 [交付说明](docs/secondary-development/delivery.md) 中区分。
 
 ### 个人负责的核心开发与测试
 
 在 TestHub 原有接口管理能力上，负责契约回归与质量门禁模块的设计、开发和验证，具体工作包括：
+
+- 扩展并发性能门禁，采集真实 P50/P95/P99、错误率与成功 RPS，将性能执行绑定本次门禁；补充受限负载、独立目标授权、幂等投递、配置漂移检测与证据缺失阻断。
+- 开发隔离商品与库存业务演示，定位并修复 N+1 查询（24 件商品业务查询 49→1），验证事务、MySQL 行锁、重复领取幂等和库存一致性。实测耗时与吞吐量由 CI 导出，详见 [性能门禁设计与复现](docs/secondary-development/performance-gate.md)。
 
 - 对 OpenAPI 3.0 请求、响应、枚举、必填字段等做方向敏感的兼容性分析；无法证明兼容的变化标记 REVIEW 并阻断，拒绝远程引用与过量展开。
 - 按 HTTP 方法和路径映射受影响套件，保留登录及变量提取前置步骤；未解析变量、缺少接口覆盖均显式阻断。
@@ -18,7 +21,7 @@
 
 ### 验证结果
 
-全仓回归 **508 项通过、3 项因环境条件跳过**；安全专项 **48 项后端回归、4 项前端恶意响应测试**通过。契约与门禁专项 **56 项通过**，契约分析引擎覆盖率 **97%**、门禁决策引擎 **100%**。前后端 API 依赖审计均为 **0 项已知漏洞**。[验收流水线](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml) 包含后端、前端、安全审计、真实 MySQL/Redis 联调及 Docker 验收；结果与范围见 [安全检查记录](docs/secondary-development/security-review.md)。
+全仓回归 **538 项通过、3 项因环境条件跳过**；安全专项 **48 项后端回归、4 项前端恶意响应测试**通过。契约、功能/性能门禁与业务演示专项 **86 项通过**，契约分析引擎覆盖率 **97%**、门禁决策引擎 **100%**。前后端 API 依赖审计均为 **0 项已知漏洞**。[验收流水线](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml) 包含后端、前端、安全审计、真实 MySQL/Redis 联调及 Docker 验收；具体实测数据见对应提交的 `performance-verification.json` artifact；安全结果与范围见 [检查记录](docs/secondary-development/security-review.md)。
 
 ### 上游能力与扩展方向
 

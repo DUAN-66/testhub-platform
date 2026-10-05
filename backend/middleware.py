@@ -6,7 +6,7 @@ from django.http import JsonResponse
 class CoreModuleBoundaryMiddleware(MiddlewareMixin):
     """Production starts with the audited API execution surface only."""
     API_PREFIXES = (
-        '/api/auth/', '/api/users/', '/api/v1/contracts/', '/api/v1/quality/',
+        '/api/auth/', '/api/users/', '/api/v1/contracts/', '/api/v1/quality/', '/api/v1/performance/',
         '/api/api-testing/projects/', '/api/api-testing/collections/',
         '/api/api-testing/requests/', '/api/api-testing/environments/',
         '/api/api-testing/histories/', '/api/api-testing/test-suites/',

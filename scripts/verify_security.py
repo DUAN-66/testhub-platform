@@ -36,7 +36,7 @@ def scan_public_files():
 def production_environment():
     env = os.environ.copy()
     env.update(DEBUG='False', SECRET_KEY=secrets.token_urlsafe(64), ALLOWED_HOSTS='testhub.example.invalid')
-    for key in ('REGISTRATION_ENABLED', 'MCP_ENABLED', 'CORE_ONLY_MODE', 'API_TEST_ALLOWED_HOSTS', 'SECURE_SSL_REDIRECT',
+    for key in ('REGISTRATION_ENABLED', 'MCP_ENABLED', 'CORE_ONLY_MODE', 'API_TEST_ALLOWED_HOSTS', 'PERFORMANCE_ALLOWED_HOSTS', 'SECURE_SSL_REDIRECT',
                 'APP_USE_HTTPS', 'CSRF_COOKIE_SECURE', 'SESSION_COOKIE_SECURE', 'TRUST_PROXY_SSL_HEADER'):
         env.pop(key, None)
     return env
@@ -48,6 +48,7 @@ def verify_production():
 from backend import settings as s
 assert not s.DEBUG and not s.REGISTRATION_ENABLED and not s.MCP_ENABLED and s.CORE_ONLY_MODE
 assert s.API_TEST_ALLOWED_HOSTS == []
+assert s.PERFORMANCE_ALLOWED_HOSTS == []
 assert s.SECURE_SSL_REDIRECT and s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE
 assert not s.TRUST_PROXY_SSL_HEADER
 assert 'django.middleware.csrf.CsrfViewMiddleware' in s.MIDDLEWARE

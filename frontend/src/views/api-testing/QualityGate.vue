@@ -30,6 +30,34 @@
         <el-form-item label="P95 上限">
           <el-input-number v-model="maxP95" :min="1" @change="resetEvidence" /> ms
         </el-form-item>
+        <el-form-item label="并发性能门禁">
+          <el-switch v-model="loadEnabled" @change="resetEvidence" />
+          <span class="arrow">启用后必须取得本次并发执行证据，缺失或失败均阻断。</span>
+        </el-form-item>
+        <template v-if="loadEnabled">
+          <el-form-item label="请求 / 环境">
+            <el-select v-model="loadRequest" placeholder="受影响套件中的 GET/HEAD 请求" @change="resetEvidence">
+              <el-option v-for="item in loadRequests" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+            <el-select v-model="loadEnvironment" placeholder="套件执行环境" clearable @change="resetEvidence">
+              <el-option v-for="item in environments" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="负载配置">
+            并发 <el-input-number v-model="loadUsers" :min="1" :max="8" @change="resetEvidence" />
+            每用户请求 <el-input-number v-model="loadIterations" :min="1" :max="10" @change="resetEvidence" />
+          </el-form-item>
+          <el-form-item label="性能预算">
+            P95(ms) <el-input-number v-model="loadP95" :min="1" @change="resetEvidence" />
+            错误率(%) <el-input-number v-model="loadErrors" :min="0" :max="100" @change="resetEvidence" />
+            成功RPS <el-input-number v-model="loadRps" :min="0" @change="resetEvidence" />
+          </el-form-item>
+          <el-form-item label="SQL查询预算">
+            <el-switch v-model="sqlEnabled" @change="resetEvidence" />
+            <el-input-number v-if="sqlEnabled" v-model="maxQueries" :min="0" @change="resetEvidence" />
+            <span class="arrow">要求每个响应携带 X-Query-Count；演示项目预期为 1。</span>
+          </el-form-item>
+        </template>
       </el-form>
       <el-button :disabled="!baseline || !candidate || busy" @click="preview">分析变更</el-button>
       <el-button type="primary" :disabled="!baseline || !candidate || busy" :loading="busy" @click="execute">执行回归并评估</el-button>
@@ -54,6 +82,7 @@
     <el-card v-if="report" class="result">
       <h3><el-tag :type="report.decision === 'PASS' ? 'success' : 'danger'">{{ report.decision === 'PASS' ? '允许放行' : '阻断放行' }}</el-tag></h3>
       <p>报告 {{ report.id }} · 通过率 {{ report.metrics.pass_rate ?? '无样本' }}% · P95 {{ report.metrics.p95_ms ?? '无样本' }} ms</p>
+      <p v-if="report.performance?.summary">并发样本 {{ report.performance.summary.requests }} · P95 {{ report.performance.summary.p95_ms?.toFixed(2) }} ms · 成功RPS {{ report.performance.summary.successful_rps?.toFixed(2) }} · 错误率 {{ report.performance.summary.error_rate }}% · SQL {{ report.performance.summary.max_queries ?? '未提供' }}</p>
       <el-table :data="report.rules">
         <el-table-column prop="name" label="门禁规则" />
         <el-table-column label="结果" width="100"><template #default="scope">{{ scope.row.passed ? '通过' : '阻断' }}</template></el-table-column>
@@ -72,16 +101,33 @@ import api from '@/utils/api'
 const projects = ref([]), versions = ref([]), project = ref(null)
 const name = ref(''), document = ref(''), baseline = ref(null), candidate = ref(null)
 const minPassRate = ref(100), maxP95 = ref(1000)
+const loadEnabled = ref(false), loadRequests = ref([]), environments = ref([])
+const loadRequest = ref(null), loadEnvironment = ref(null), loadUsers = ref(4), loadIterations = ref(10)
+const loadP95 = ref(1000), loadErrors = ref(0), loadRps = ref(1), sqlEnabled = ref(false), maxQueries = ref(1)
+let performanceId = null, performanceKey = null
 const plan = ref(null), run = ref(null), report = ref(null), error = ref(''), busy = ref(false)
 let generation = 0, disposed = false, idempotencyKey = null
 const data = () => ({ baseline_id: baseline.value, candidate_id: candidate.value,
-  policy: { min_pass_rate: minPassRate.value, max_p95_ms: maxP95.value } })
+  policy: { min_pass_rate: minPassRate.value, max_p95_ms: maxP95.value,
+    ...(loadEnabled.value ? { performance: { max_p95_ms: loadP95.value, max_error_rate: loadErrors.value,
+      min_rps: loadRps.value, min_requests: loadUsers.value * loadIterations.value,
+      ...(sqlEnabled.value ? { max_queries: maxQueries.value } : {}) } } : {}) } })
 const unpack = response => response.data
-const resetEvidence = () => { generation++; plan.value = null; run.value = null; report.value = null; error.value = ''; idempotencyKey = null }
+const resetEvidence = () => { generation++; plan.value = null; run.value = null; report.value = null; error.value = ''; idempotencyKey = null; performanceId = null; performanceKey = null }
 const loadVersions = async () => { versions.value = unpack(await api.get('/v1/contracts/', { params: { project: project.value } })) }
 const changeProject = async () => {
   resetEvidence(); baseline.value = null; candidate.value = null
-  await guarded(loadVersions)
+  loadRequest.value = null; loadEnvironment.value = null
+  await guarded(async () => {
+    await loadVersions()
+    const responses = await Promise.all([
+      api.get('/api-testing/requests/', { params: { project: project.value } }),
+      api.get('/api-testing/environments/', { params: { project: project.value } })
+    ])
+    const requests = responses[0].data.results || responses[0].data
+    loadRequests.value = requests.filter(item => ['GET', 'HEAD'].includes(item.method))
+    environments.value = (responses[1].data.results || responses[1].data).filter(item => item.project === project.value || item.scope === 'GLOBAL')
+  })
 }
 const guarded = async action => {
   busy.value = true; error.value = ''
@@ -94,13 +140,23 @@ const importVersion = () => guarded(async () => {
 })
 const preview = () => guarded(async () => { plan.value = unpack(await api.post('/v1/quality/plan/', data())) })
 const awaitEvidence = async token => {
+  if (loadEnabled.value && !performanceId) {
+    performanceKey ||= crypto.randomUUID()
+    const measured = unpack(await api.post('/v1/performance/', { request_id: loadRequest.value,
+      environment_id: loadEnvironment.value || null, gate_id: run.value.id,
+      workload: { users: loadUsers.value, iterations: loadIterations.value, timeout_seconds: 3 } },
+    { headers: { 'Idempotency-Key': performanceKey } }))
+    performanceId = measured.id
+  }
   const deadline = Date.now() + 90000
   while (!disposed && token === generation && Date.now() < deadline) {
     run.value = unpack(await api.get(`/v1/quality/${run.value.id}/run/`))
     if (run.value.state === 'ERROR') break
     if (run.value.state === 'READY') {
       const results = await Promise.all(run.value.execution_ids.map(id => api.get(`/api-testing/test-executions/${id}/`)))
-      if (results.every(r => ['COMPLETED', 'FAILED', 'CANCELLED'].includes(r.data.status))) break
+      const functionalDone = results.every(r => ['COMPLETED', 'FAILED', 'CANCELLED'].includes(r.data.status))
+      const loadDone = !performanceId || ['COMPLETED', 'FAILED'].includes((await api.get(`/v1/performance/${performanceId}/`)).data.status)
+      if (functionalDone && loadDone) break
     }
     await new Promise(resolve => setTimeout(resolve, 500))
   }

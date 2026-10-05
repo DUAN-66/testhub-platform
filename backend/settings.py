@@ -31,6 +31,7 @@ else:
 REGISTRATION_ENABLED = config('REGISTRATION_ENABLED', default=DEBUG, cast=bool)
 CORE_ONLY_MODE = config('CORE_ONLY_MODE', default=not DEBUG, cast=bool)
 API_TEST_ALLOWED_HOSTS = config('API_TEST_ALLOWED_HOSTS', default='127.0.0.1,localhost' if DEBUG else '', cast=parse_csv)
+PERFORMANCE_ALLOWED_HOSTS = config('PERFORMANCE_ALLOWED_HOSTS', default='127.0.0.1,localhost' if DEBUG else '', cast=parse_csv)
 API_TEST_MAX_RESPONSE_BYTES = config('API_TEST_MAX_RESPONSE_BYTES', default=2_000_000, cast=int)
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
 SECURE_REDIRECT_EXEMPT = [r'^health/$']
@@ -101,6 +102,8 @@ LOCAL_APPS = [
     'apps.api_testing',
     'apps.contracts',
     'apps.quality_gates',
+    'apps.load_testing',
+    'apps.commerce_demo',
     'apps.ui_automation.apps.UiAutomationConfig',
     'apps.app_automation.apps.AppAutomationConfig',  # APP自动化测试
     'apps.core',

@@ -176,7 +176,22 @@ class QualityViewSet(viewsets.GenericViewSet):
         for execution in queryset:
             executions.append({'suite_id': execution.test_suite_id, 'status': execution.status,
                                'results': execution.results, 'total_requests': execution.total_requests})
-        report = evaluate(diff, impact, executions, policy)
+        performance = None
+        if 'performance' in policy:
+            from apps.load_testing.models import PerformanceRun
+            from apps.load_testing.services import fingerprint, validate_access
+            measured = PerformanceRun.objects.filter(gate=run, project_id=run.project_id,
+                                                      created_by_id=run.created_by_id).first()
+            if measured:
+                matches = False
+                try:
+                    validate_access(measured.request, measured.environment, measured.created_by, run)
+                    matches = fingerprint(measured.request, measured.environment) == measured.configuration_digest
+                except (ValidationError, ValueError):
+                    pass
+                performance = {'run_id': str(measured.pk), 'status': measured.status,
+                               'configuration_matches': matches, 'summary': measured.summary}
+        report = evaluate(diff, impact, executions, policy, performance)
         configuration_matches = run.plan['suite_fingerprints'] == suite_fingerprints(run.project_id, impact['suite_ids'])
         report['rules'].append({'name': 'CASE_CONFIGURATION_UNCHANGED', 'passed': configuration_matches,
                                 'actual': configuration_matches, 'expected': True})
