@@ -1,0 +1,27 @@
+# Web framework and shared infrastructure
+Django==4.2.7
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.3.1
+django-filter==23.5
+django-simpleui==2025.6.24
+drf-spectacular==0.27.0
+python-decouple==3.8
+PyMySQL==1.1.0
+cryptography==41.0.7
+celery==5.3.4
+redis==5.0.1
+channels==4.3.2
+channels-redis==4.3.0
+daphne==4.2.1
+requests==2.32.4
+chardet==5.2.0
+charset-normalizer==3.4.2
+urllib3==2.5.0
+httpx==0.28.1
+PyYAML==6.0.2
+jsonschema==4.25.0
+jsonpath-ng==1.7.0
+Pillow==12.1.0
+python-dateutil==2.9.0.post0
+fakerx==0.2.0

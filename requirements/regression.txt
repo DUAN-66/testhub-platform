@@ -1,0 +1,9 @@
+-r dev.txt
+
+# Optional modules needed for complete regression test collection.
+mcp==1.25.0
+playwright==1.57.0
+selenium==4.15.2
+webdriver-manager==4.0.1
+airtest==1.4.3
+numpy==1.26.4

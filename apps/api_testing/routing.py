@@ -1,0 +1,11 @@
+from django.urls import re_path
+
+from .consumers import ApiExecutionConsumer
+
+
+websocket_urlpatterns = [
+    re_path(
+        r'^ws/api-testing/executions/(?P<execution_id>\d+)/$',
+        ApiExecutionConsumer.as_asgi(),
+    ),
+]

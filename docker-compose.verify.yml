@@ -1,0 +1,84 @@
+# Isolated, loopback-only acceptance stack. All credentials below are fixtures.
+# This file never loads the user's .env or mounts existing platform data.
+x-backend: &backend
+  image: testhub-secondary-backend:verify
+  build:
+    context: .
+    dockerfile: Dockerfile.backend
+  environment: &environment
+    DJANGO_SETTINGS_MODULE: backend.settings
+    DEBUG: 'True'
+    SECRET_KEY: verification-only-testhub-key-2026-not-for-production
+    MCP_ENABLED: 'False'
+    DB_HOST: mysql
+    DB_NAME: testhub_verify
+    DB_USER: testhub_verify
+    DB_PASSWORD: verification-only-db-password
+    REDIS_URL: redis://redis:6379/0
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: testhub_verify
+      MYSQL_USER: testhub_verify
+      MYSQL_PASSWORD: verification-only-db-password
+      MYSQL_ROOT_PASSWORD: verification-only-root-password
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes: [verify_mysql:/var/lib/mysql]
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  demo-api:
+    <<: *backend
+    command: python scripts/demo_api.py --host 0.0.0.0
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8089/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    <<: *backend
+    command: >-
+      sh -c "python manage.py migrate --noinput &&
+      python manage.py seed_api_demo --password 'TestHubDemo!2026' --base-url http://demo-api:8089 &&
+      daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
+    ports: ['127.0.0.1:18000:8000']
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      demo-api: {condition: service_healthy}
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=3).close()"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+  worker:
+    <<: *backend
+    command: celery -A backend worker --pool=solo --concurrency=1 --loglevel=INFO
+    depends_on:
+      backend: {condition: service_healthy}
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports: ['127.0.0.1:18080:80']
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  verify_mysql:

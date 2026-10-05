@@ -1,0 +1,6 @@
+-r api.txt
+
+playwright==1.57.0
+selenium==4.15.2
+webdriver-manager==4.0.1
+browser-use==0.10.1

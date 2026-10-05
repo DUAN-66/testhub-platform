@@ -1,0 +1,11 @@
+{
+  "execution_id": 10,
+  "snapshot_received": true,
+  "heartbeat_received": true,
+  "worker_cancellation_received": true,
+  "events": [
+    "STATE_CHANGED",
+    "EXECUTION_CANCELLED"
+  ],
+  "status": "CANCELLED"
+}

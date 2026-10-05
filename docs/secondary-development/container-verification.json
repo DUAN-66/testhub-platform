@@ -1,0 +1,28 @@
+[
+  {
+    "scenario": "01 登录关联成功",
+    "execution_id": 7,
+    "status": "COMPLETED",
+    "submit_seconds": 0.093,
+    "passed": 2,
+    "failed": 0,
+    "log_count": 8
+  },
+  {
+    "scenario": "02 断言失败",
+    "execution_id": 8,
+    "status": "FAILED",
+    "submit_seconds": 0.062,
+    "passed": 1,
+    "failed": 1,
+    "log_count": 8
+  },
+  {
+    "scenario": "03 运行中取消",
+    "execution_id": 9,
+    "status": "CANCELLED",
+    "submit_seconds": 0.063,
+    "executed_requests": 1,
+    "remaining_requests_skipped": true
+  }
+]

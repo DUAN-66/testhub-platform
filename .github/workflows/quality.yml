@@ -1,0 +1,138 @@
+name: quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements/dev.txt
+      - run: python manage.py check --settings=backend.test_settings
+      - run: python manage.py makemigrations --check --dry-run --settings=backend.test_settings
+      - run: python manage.py migrate --noinput --settings=backend.test_settings
+      - run: pytest apps/api_testing/tests apps/core/tests.py --junitxml=test-results.xml --cov=apps.api_testing.engine --cov=apps.api_testing.services --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: |
+            test-results.xml
+            coverage.xml
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: testhub_ci
+          MYSQL_USER: testhub
+          MYSQL_PASSWORD: ci-test-password
+          MYSQL_ROOT_PASSWORD: ci-root-test-password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-test-password"
+          --health-interval=10s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd="redis-cli ping" --health-interval=5s --health-timeout=3s --health-retries=20
+    env:
+      DJANGO_SETTINGS_MODULE: backend.settings
+      DB_HOST: 127.0.0.1
+      DB_NAME: testhub_ci
+      DB_USER: testhub
+      DB_PASSWORD: ci-test-password
+      REDIS_URL: redis://127.0.0.1:6379/0
+      SECRET_KEY: ci-only-testhub-key-not-for-production-2026
+      DEBUG: 'True'
+      MCP_ENABLED: 'False'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements/dev.txt
+      - run: python manage.py migrate --noinput
+      - run: python manage.py seed_api_demo --password 'TestHubDemo!2026'
+      - name: Start local test services
+        run: |
+          python scripts/demo_api.py > demo-api.log 2>&1 &
+          daphne -b 127.0.0.1 -p 8000 backend.asgi:application > backend.log 2>&1 &
+          celery -A backend worker --pool=solo --concurrency=1 -l INFO > worker.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/auth/login/)" = '405' ]; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - run: python scripts/verify_demo.py --password 'TestHubDemo!2026'
+      - run: python scripts/verify_realtime.py --base-url http://127.0.0.1:8000 --password 'TestHubDemo!2026' --output docs/secondary-development/redis-realtime-verification.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mysql-redis-integration
+          path: |
+            docs/secondary-development/demo-verification.json
+            docs/secondary-development/redis-realtime-verification.json
+            demo-api.log
+            backend.log
+            worker.log
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.32.4 websocket-client==1.8.0
+      - run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml up --build --detach --wait --wait-timeout 240
+      - run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml exec -T backend python manage.py check
+      - run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml exec -T backend python manage.py makemigrations --check --dry-run
+      - run: python scripts/verify_demo.py --base-url http://127.0.0.1:18080 --password 'TestHubDemo!2026' --output docs/secondary-development/container-verification.json
+      - run: python scripts/verify_realtime.py --password 'TestHubDemo!2026'
+      - name: Collect container status and logs
+        if: always()
+        run: |
+          docker compose -p testhub-secondary-verify -f docker-compose.verify.yml ps -a > container-status.log
+          docker compose -p testhub-secondary-verify -f docker-compose.verify.yml logs --no-color > container-services.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-acceptance
+          path: |
+            docs/secondary-development/container-verification.json
+            docs/secondary-development/realtime-verification.json
+            container-status.log
+            container-services.log
+      - if: always()
+        run: docker compose -p testhub-secondary-verify -f docker-compose.verify.yml down

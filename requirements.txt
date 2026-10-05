@@ -1,0 +1,3 @@
+# Default installation: API execution platform and development checks.
+# Optional browser/mobile/AI engines: see requirements/ and requirements_full.txt.
+-r requirements/dev.txt
