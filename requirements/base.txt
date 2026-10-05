@@ -25,3 +25,4 @@ jsonpath-ng==1.7.0
 Pillow==12.1.0
 python-dateutil==2.9.0.post0
 fakerx==0.2.0
+openapi-spec-validator==0.7.2

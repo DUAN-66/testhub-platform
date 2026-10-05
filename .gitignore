@@ -85,6 +85,9 @@ docker-compose.override.yml
 demo.sqlite3
 .coverage
 .runtime/
+regression-results.xml
+quality-gate-verification.json
+gate-report.json
 coverage.xml
 docs/secondary-development/coverage/
 *.sqlite3

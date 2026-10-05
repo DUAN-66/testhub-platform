@@ -1,6 +1,17 @@
-# TestHub 智能测试管理平台
+# TestHub QualityGate — 契约变更驱动的接口回归平台
 
-本仓库是基于 [chenjigang4167/testhub_platform](https://github.com/chenjigang4167/testhub_platform) 的接口测试二次开发项目，保留上游 GPL-3.0 许可证与原有平台模块。二开重点为接口执行引擎、关联变量、Celery 异步执行、任务取消、实时日志与自动化验证，详见 [交付说明](docs/secondary-development/delivery.md)。
+本仓库基于 [chenjigang4167/testhub_platform](https://github.com/chenjigang4167/testhub_platform) 二次开发，保留 GPL-3.0 许可证与上游归属。核心新增能力是 **OpenAPI 契约变更分析 → 受影响套件选择 → Celery 回归执行 → 可追溯质量门禁**。原有模块与本次独立开发范围在 [交付说明](docs/secondary-development/delivery.md) 中区分。
+
+### 本项目独立开发的重点
+
+- 对 OpenAPI 3.0 请求、响应、枚举、必填字段等做方向敏感的兼容性分析；无法证明兼容的变化标记 REVIEW 并阻断，拒绝远程引用与过量展开。
+- 按 HTTP 方法和路径映射受影响套件，保留登录及变量提取前置步骤；未解析变量、缺少接口覆盖均显式阻断。
+- 将门禁与本次执行 ID、契约摘要、用例配置指纹绑定；数据库唯一约束保证重复请求不重复投递。
+- 独立 Celery 执行、状态机、任务取消、Redis WebSocket 实时日志、敏感字段脱敏。
+- 可视化门禁页面、CI 命令行工具、持久化报告；通过率与 P95 预算参与决策，缺失或未完成证据不放行。
+- GitHub Actions 验证单元测试、前端、真实 MySQL/Redis 联调与 Docker 完整链路，并保存验收证据。
+
+**五分钟演示**：启动隔离环境后进入“接口测试 → 契约质量门禁”，选择 `QualityGate 演示` 项目。比较 baseline 与 compatible 应 PASS；比较 baseline 与 breaking 应 BLOCK，即使 HTTP 断言全部通过。详见 [运行、设计与限制](docs/secondary-development/quality-gate.md)。
 
 [![quality](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml/badge.svg)](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml)
 

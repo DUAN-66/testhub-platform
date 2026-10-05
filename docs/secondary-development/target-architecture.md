@@ -1,5 +1,7 @@
 # TestHub QualityGate 目标架构
 
+> 此文档是最初的目标设计，包含尚未实现的规划（例如趋势、Webhook、完整快照隔离）。2026-10-05 已落地的契约比较、影响选择、幂等执行、证据门禁与使用限制以 [quality-gate.md](quality-gate.md) 为准。
+
 ## 1. 项目定位
 
 项目名称暂定为 **TestHub QualityGate**：基于 TestHub 二次开发的 OpenAPI 驱动接口持续测试与发布质量门禁平台。

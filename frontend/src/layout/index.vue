@@ -68,6 +68,9 @@
               <el-icon><Link /></el-icon>
               <span>{{ $t('menu.interfaceManagement') }}</span>
             </el-menu-item>
+            <el-menu-item index="/api-testing/quality-gate">
+              <span>契约质量门禁</span>
+            </el-menu-item>
             <el-menu-item index="/api-testing/automation">
               <el-icon><VideoPlay /></el-icon>
               <span>{{ $t('menu.automationTesting') }}</span>
@@ -524,6 +527,7 @@ const breadcrumbTitle = computed(() => {
     '/api-testing/projects': t('menu.projectManagement'),
     '/api-testing/interfaces': t('menu.interfaceManagement'),
     '/api-testing/automation': t('menu.automationTesting'),
+    '/api-testing/quality-gate': '契约质量门禁',
     '/api-testing/history': t('menu.requestHistory'),
     '/api-testing/environments': t('menu.environmentManagement'),
     '/api-testing/reports': t('menu.testReport'),

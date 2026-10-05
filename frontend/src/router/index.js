@@ -226,6 +226,11 @@ const routes = [
                 component: ApiAutomationTesting
             },
             {
+                path: 'quality-gate',
+                name: 'ApiQualityGate',
+                component: () => import('@/views/api-testing/QualityGate.vue')
+            },
+            {
                 path: 'history',
                 name: 'ApiHistory',
                 component: ApiRequestHistory

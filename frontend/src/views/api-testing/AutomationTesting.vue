@@ -302,7 +302,8 @@
     </el-dialog>
 
     <el-dialog v-model="showRulesDialog" title="配置断言与响应提取" width="720px">
-      <el-alert title="使用 JSON 数组配置规则。空数组会继承请求原有规则；提取变量可通过 {{变量名}} 在后续请求中引用。" :closable="false" />
+      <el-alert title="编辑套件附加规则，请求原有规则始终执行；空数组表示不追加规则。提取变量可用于后续请求。" :closable="false" />
+      <pre v-if="editingRules">请求原有规则（只读）：{{ JSON.stringify({ assertions: editingRules.request?.assertions || [], extractors: editingRules.request?.extractors || [] }, null, 2) }}</pre>
       <p>断言规则</p>
       <el-input v-model="rulesForm.assertions" type="textarea" :rows="7" aria-label="断言规则" />
       <p>响应提取规则</p>
@@ -854,14 +855,12 @@ const updateRequestEnabled = async (suiteRequest) => {
   }
 }
 
-const effectiveRules = (suiteRequest, key) => suiteRequest[key]?.length
-  ? suiteRequest[key]
-  : suiteRequest.request?.[key] || []
+const effectiveRules = (suiteRequest, key) => [...(suiteRequest.request?.[key] || []), ...(suiteRequest[key] || [])]
 
 const editAssertions = (suiteRequest) => {
   editingRules.value = suiteRequest
-  rulesForm.assertions = JSON.stringify(effectiveRules(suiteRequest, 'assertions'), null, 2)
-  rulesForm.extractors = JSON.stringify(effectiveRules(suiteRequest, 'extractors'), null, 2)
+  rulesForm.assertions = JSON.stringify(suiteRequest.assertions || [], null, 2)
+  rulesForm.extractors = JSON.stringify(suiteRequest.extractors || [], null, 2)
   rulesError.value = ''
   showRulesDialog.value = true
 }

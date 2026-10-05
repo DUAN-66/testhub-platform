@@ -51,6 +51,7 @@ services:
     command: >-
       sh -c "python manage.py migrate --noinput &&
       python manage.py seed_api_demo --password 'TestHubDemo!2026' --base-url http://demo-api:8089 &&
+      python manage.py seed_quality_demo --password 'TestHubDemo!2026' --base-url http://demo-api:8089 &&
       daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
     ports: ['127.0.0.1:18000:8000']
     depends_on:
