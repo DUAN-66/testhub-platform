@@ -4,6 +4,7 @@ import copy
 import json
 import re
 from typing import Any, Mapping
+from urllib.parse import urlsplit, unquote, unquote_plus
 
 from apps.core.variable_resolver import VariableResolver
 
@@ -367,8 +368,28 @@ class ApiExecutionService:
                         collect(child.get('value'), 'secret')
                     else:
                         collect(child, key)
-            elif isinstance(item, str) and item and _SENSITIVE_KEY.search(key):
-                context.redaction_values.add(item)
+            elif isinstance(item, str) and item:
+                if _SENSITIVE_KEY.search(key):
+                    context.redaction_values.add(item)
+                # Credentials embedded in a URL are not represented by JSON keys.
+                # Remember raw and decoded forms so snapshots and errors cannot leak them.
+                for url in re.findall(r'https?://[^\s"<>]+', item, flags=re.IGNORECASE):
+                    values = []
+                    authority = url.partition('://')[2].split('/', 1)[0].split('?', 1)[0].split('#', 1)[0]
+                    if '@' in authority:
+                        values.append(authority.rsplit('@', 1)[0])
+                    try:
+                        parsed = urlsplit(url)
+                        values.extend((parsed.username, parsed.password))
+                    except ValueError:
+                        # Even rejected malformed URLs must not leak userinfo or query keys.
+                        pass
+                    for pair in url.partition('?')[2].split('#', 1)[0].split('&'):
+                        name, _, value = pair.partition('=')
+                        if _SENSITIVE_KEY.search(unquote_plus(name)):
+                            values.extend((value, unquote_plus(value)))
+                    for secret in filter(None, values):
+                        context.redaction_values.update((secret, unquote(secret)))
 
         collect(value)
         secret_values = context.redaction_values | {

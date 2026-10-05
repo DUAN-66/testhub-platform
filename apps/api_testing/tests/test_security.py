@@ -251,6 +251,30 @@ def test_invalid_timeouts_are_rejected(timeout):
         RequestBuilder().build({'url': 'http://127.0.0.1/', 'timeout': timeout}, RunContext.from_environment({}))
 
 
+@pytest.mark.parametrize('host', ['127.0.0.1', '[invalid'])
+def test_rejected_url_credentials_are_not_persisted(boundary, host):
+    owner, _, _, _ = boundary
+    request = ApiRequest.objects.create(name='unsafe-url', created_by=owner,
+        url=f'http://fixture-user:fixture-url-password@{host}/')
+    result = ApiExecutionService().execute_request(request, None, owner)
+    assert not result['success']
+    history = RequestHistory.objects.get(pk=result['history_id'])
+    for payload in [result, history.request_data]:
+        assert 'fixture-url-password' not in json.dumps(payload)
+        assert 'fixture-user' not in json.dumps(payload)
+
+
+def test_query_credentials_are_redacted_in_raw_and_decoded_forms():
+    value = {'url': 'https://example.invalid/?api_key=fixture%2fquery-secret&access_token=fixture+spaced+secret&name=normal',
+             'error': 'Echoed fixture/query-secret and fixture spaced secret'}
+    result = ApiExecutionService._redact(value, RunContext.from_environment({}))
+    assert 'fixture%2fquery-secret' not in json.dumps(result)
+    assert 'fixture/query-secret' not in json.dumps(result)
+    assert 'fixture+spaced+secret' not in json.dumps(result)
+    assert 'fixture spaced secret' not in json.dumps(result)
+    assert 'name=normal' in result['url']
+
+
 def test_exchange_uses_full_random_code_and_atomic_redemption(boundary):
     owner, _, _, client = boundary
     redis = MagicMock()

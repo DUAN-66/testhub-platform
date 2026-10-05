@@ -18,7 +18,7 @@
 
 ### 验证结果
 
-全仓回归 **505 项通过、3 项因环境条件跳过**；安全专项 **45 项后端回归、4 项前端恶意响应测试**通过。契约与门禁专项 **56 项通过**，契约分析引擎覆盖率 **97%**、门禁决策引擎 **100%**。前后端 API 依赖审计均为 **0 项已知漏洞**。[验收流水线](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml) 包含后端、前端、安全审计、真实 MySQL/Redis 联调及 Docker 验收；结果与范围见 [安全检查记录](docs/secondary-development/security-review.md)。
+全仓回归 **508 项通过、3 项因环境条件跳过**；安全专项 **48 项后端回归、4 项前端恶意响应测试**通过。契约与门禁专项 **56 项通过**，契约分析引擎覆盖率 **97%**、门禁决策引擎 **100%**。前后端 API 依赖审计均为 **0 项已知漏洞**。[验收流水线](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml) 包含后端、前端、安全审计、真实 MySQL/Redis 联调及 Docker 验收；结果与范围见 [安全检查记录](docs/secondary-development/security-review.md)。
 
 ### 上游能力与扩展方向
 
