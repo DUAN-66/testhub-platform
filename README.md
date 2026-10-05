@@ -2,7 +2,9 @@
 
 本仓库基于 [chenjigang4167/testhub_platform](https://github.com/chenjigang4167/testhub_platform) 二次开发，保留 GPL-3.0 许可证与上游归属。核心新增能力是 **OpenAPI 契约变更分析 → 受影响套件选择 → Celery 回归执行 → 可追溯质量门禁**。原有模块与本次独立开发范围在 [交付说明](docs/secondary-development/delivery.md) 中区分。
 
-### 本项目独立开发的重点
+### 个人负责的核心开发与测试
+
+在 TestHub 原有接口管理能力上，负责契约回归与质量门禁模块的设计、开发和验证，具体工作包括：
 
 - 对 OpenAPI 3.0 请求、响应、枚举、必填字段等做方向敏感的兼容性分析；无法证明兼容的变化标记 REVIEW 并阻断，拒绝远程引用与过量展开。
 - 按 HTTP 方法和路径映射受影响套件，保留登录及变量提取前置步骤；未解析变量、缺少接口覆盖均显式阻断。
@@ -13,11 +15,19 @@
 
 **五分钟演示**：启动隔离环境后进入“接口测试 → 契约质量门禁”，选择 `QualityGate 演示` 项目。比较 baseline 与 compatible 应 PASS；比较 baseline 与 breaking 应 BLOCK，即使 HTTP 断言全部通过。详见 [运行、设计与限制](docs/secondary-development/quality-gate.md)。
 
+### 验证结果
+
+全仓回归 **460 项通过、3 项因环境条件跳过**；新增契约与门禁专项测试 **56 项通过**，契约分析引擎覆盖率 **97%**、门禁决策引擎 **100%**。[验收流水线](https://github.com/DUAN-66/testhub-platform/actions/runs/37278693958) 包含后端、前端、真实 MySQL/Redis 联调和 Docker 验收，四组任务全部通过。
+
+### 上游能力与扩展方向
+
+复用 TestHub 的用户、项目、用例管理及原有 AI 辅助能力；AI 需求分析、用例生成与智能助手作为平台的辅助功能保留。契约兼容性和发布门禁由确定性规则及执行证据判定，便于复现和审计。
+
 [![quality](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml/badge.svg)](https://github.com/DUAN-66/testhub-platform/actions/workflows/quality.yml)
 
 <div align="center">
 
-**基于 AI 驱动的全栈测试管理平台**
+**接口持续测试与发布质量门禁**
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-4.2-green.svg)](https://www.djangoproject.com/)
@@ -30,7 +40,7 @@
 
 接口测试二次开发的实现范围、启动步骤与验收证据见 [二次开发交付说明](docs/secondary-development/delivery.md)。
 
-TestHub 是一个 AI 驱动的全栈测试管理平台，覆盖测试全流程，包含：**AI 需求分析与用例生成**、**测试用例管理与评审**、**API 测试**、**UI 自动化测试（Web）**、**APP 自动化测试（Android）**、**性能测试**、**数据工厂**等模块，助力测试团队全面提效。
+本项目以接口持续测试和发布质量决策为主线。以下介绍所复用的上游 TestHub 平台能力，包括用例管理与评审、API/UI/APP 测试、性能测试、数据工厂及 AI 辅助功能；个人负责的新增与重构范围见本文“个人负责的核心开发与测试”。
 
 ## ✨ 核心特性
 
